@@ -11,6 +11,8 @@ const SUPABASE_URL          = process.env.SUPABASE_URL;
 const SUPABASE_SECRET_KEY   = process.env.SUPABASE_SECRET_KEY;
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
 const ADMIN_PASSWORD        = process.env.ADMIN_PASSWORD || 'admin1234';
+const PAYSTACK_SECRET_KEY   = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_PUBLIC_KEY   = process.env.PAYSTACK_PUBLIC_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
   console.error('❌  Missing SUPABASE_URL or SUPABASE_SECRET_KEY in .env');
@@ -67,11 +69,12 @@ const server = http.createServer(async (req, res) => {
 
   try {
 
-    // ── Serve HTML (inject public Supabase keys for client-side realtime) ──
+    // ── Serve HTML (inject public keys for client-side realtime & paystack) ──
     if (method === 'GET' && (pathname === '/' || pathname === '/admin')) {
       let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
       html = html.replace(/__SUPABASE_URL__/g,      SUPABASE_URL);
       html = html.replace(/__SUPABASE_ANON_KEY__/g, SUPABASE_PUBLISHABLE_KEY);
+      html = html.replace(/__PAYSTACK_PUBLIC_KEY__/g, PAYSTACK_PUBLIC_KEY);
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(html);
       return;
@@ -81,22 +84,46 @@ const server = http.createServer(async (req, res) => {
     //  PUBLIC API
     // ══════════════════════════════════════════════════════════════════════
 
-    // Cast a vote
-    if (method === 'POST' && pathname === '/api/vote') {
-      const { contestId, contestantId, voterName } = await parseBody(req);
+    // Verify Paystack Payment and Cast Vote
+    if (method === 'POST' && pathname === '/api/vote/verify') {
+      const { contestId, contestantId, voterName, reference } = await parseBody(req);
+      if (!reference) return json(res, 400, { error: 'Payment reference missing' });
 
-      // Verify contestant + contest exist and are active
+      // 1. Verify payment with Paystack
+      let paystackData;
+      try {
+        const psRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: {
+            'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
+          }
+        });
+        const psJson = await psRes.json();
+        if (!psJson.status || psJson.data.status !== 'success') {
+          return json(res, 400, { error: 'Payment verification failed' });
+        }
+        paystackData = psJson.data;
+      } catch (e) {
+        return json(res, 500, { error: 'Paystack connection error' });
+      }
+
+      // 2. Verify contestant + contest exist and are active
       const rows = await supa('GET',
-        `contestants?id=eq.${contestantId}&select=id,name,contest_id,contests(id,name,active)`
+        `contestants?id=eq.${contestantId}&select=id,name,contest_id,contests(id,name,active,vote_price)`
       );
       const contestant = rows?.[0];
       if (!contestant)                    return json(res, 404, { error: 'Contestant not found' });
       if (!contestant.contests?.active)   return json(res, 400, { error: 'Contest is not active' });
 
-      // Atomic vote increment via RPC
+      // 3. Verify amount paid matches the vote price (Paystack uses kobo, so * 100)
+      const expectedAmountKobo = parseInt(contestant.contests.vote_price) * 100;
+      if (paystackData.amount < expectedAmountKobo) {
+        return json(res, 400, { error: `Insufficient payment. Expected ₦${contestant.contests.vote_price}` });
+      }
+
+      // 4. Atomic vote increment via RPC
       await supa('POST', 'rpc/increment_votes', { p_contestant_id: contestantId });
 
-      // Log to feed
+      // 5. Log to feed
       await supa('POST', 'feed', {
         voter_name:      (voterName || 'Someone').trim().slice(0, 60),
         contestant_id:   contestantId,

@@ -18,6 +18,8 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <!-- Supabase JS (for client-side realtime) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Paystack JS -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
 
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; background:#050505; color:#fff; overflow-x:hidden; }
@@ -64,6 +66,7 @@
     // Inject Supabase config (replaced by server at runtime)
     window.ENV_SUPABASE_URL      = '__SUPABASE_URL__';
     window.ENV_SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
+    window.ENV_PAYSTACK_PUBLIC_KEY = '__PAYSTACK_PUBLIC_KEY__';
 
     // Init Supabase client for realtime reads
     window.supa = supabase.createClient(
@@ -104,6 +107,7 @@
       const [showShareModal,  setShowShareModal]  = useState(false);
       const [showPayModal,    setShowPayModal]    = useState(false);
       const [voterName,       setVoterName]       = useState('');
+      const [voterEmail,      setVoterEmail]      = useState('');
       const [isPaying,        setIsPaying]        = useState(false);
       const [paymentSuccess,  setPaymentSuccess]  = useState(false);
       const [toast,           setToast]           = useState(null);
@@ -215,39 +219,60 @@
         setShowPayModal(true);
       };
 
-      const handleConfirmPayment = async () => {
+      const handleConfirmPayment = () => {
+        if (!voterEmail.trim() || !voterEmail.includes('@')) {
+          showNotification('Please enter a valid email address', 'error');
+          return;
+        }
         if (isPaying) return;
         setIsPaying(true);
-        try {
-          const res = await fetch('/api/vote', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contestId:    selectedContest.id,
-              contestantId: selectedContestant.id,
-              voterName:    voterName.trim(),
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            setPaymentSuccess(true);
-            showNotification(`Vote cast for ${selectedContestant.name}!`);
-            // Realtime will auto-update, but also force refresh
-            setTimeout(loadData, 500);
-          } else {
-            showNotification(data.error || 'Payment failed', 'error');
+
+        const amountKobo = parseInt(selectedContest.votePrice) * 100;
+
+        const handler = PaystackPop.setup({
+          key: window.ENV_PAYSTACK_PUBLIC_KEY,
+          email: voterEmail.trim(),
+          amount: amountKobo,
+          currency: 'NGN',
+          callback: async (response) => {
+            // Send reference to backend for verification
+            try {
+              const res = await fetch('/api/vote/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contestId:    selectedContest.id,
+                  contestantId: selectedContestant.id,
+                  voterName:    voterName.trim(),
+                  reference:    response.reference
+                }),
+              });
+              const data = await res.json();
+              if (data.success) {
+                setPaymentSuccess(true);
+                showNotification(`Vote cast for ${selectedContestant.name}!`);
+                setTimeout(loadData, 500);
+              } else {
+                showNotification(data.error || 'Payment verification failed', 'error');
+                setIsPaying(false);
+              }
+            } catch {
+              showNotification('Network error during verification.', 'error');
+              setIsPaying(false);
+            }
+          },
+          onClose: () => {
+            setIsPaying(false);
           }
-        } catch {
-          showNotification('Network error. Please try again.', 'error');
-        } finally {
-          setIsPaying(false);
-        }
+        });
+        handler.openIframe();
       };
 
       const closePayModal = () => {
         setShowPayModal(false);
         setPaymentSuccess(false);
         setVoterName('');
+        setVoterEmail('');
         setSelectedContest(null);
         setSelectedContestant(null);
       };
@@ -975,6 +1000,14 @@
                       </div>
                     </div>
 
+                    <input
+                      type="email"
+                      value={voterEmail}
+                      onChange={e => setVoterEmail(e.target.value)}
+                      placeholder="Your email address (Required for receipt)"
+                      required
+                      className="w-full px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-xl text-sm text-white focus:outline-none focus:border-white mb-3 placeholder-neutral-600"
+                    />
                     <input
                       type="text"
                       value={voterName}
