@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoteNow — Premium Live Voting</title>
+  <meta name="description" content="Cast your vote, share your favourite contestant and watch live results update instantly.">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background:#050505; color:#fff; overflow-x:hidden; }
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:#0d0d0d; }
+    ::-webkit-scrollbar-thumb { background:#333; border-radius:4px; }
+    .glass-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .glass-card:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.18);
+      transform: translateY(-4px);
+    }
+    .ticker-wrap { overflow:hidden; }
+    .ticker-content {
+      display:inline-flex; white-space:nowrap;
+      animation: ticker 40s linear infinite; gap:3rem;
+    }
+    @keyframes ticker {
+      0%   { transform: translate3d(0,0,0); }
+      100% { transform: translate3d(-50%,0,0); }
+    }
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+    @keyframes pulse-ring {
+      0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+      70%  { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+    .vote-success { animation: pulse-ring 0.6s ease; }
+  </style>
+
+  <!-- Supabase JS (for client-side realtime) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <!-- Paystack JS -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+  <script>
+    // Injected by Vite at build time
+    window.ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    window.ENV_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    window.ENV_PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+
+    // Init Supabase client for realtime reads
+    window.supa = supabase.createClient(
+      window.ENV_SUPABASE_URL,
+      window.ENV_SUPABASE_ANON_KEY
+    );
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

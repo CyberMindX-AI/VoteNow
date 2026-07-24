@@ -69,18 +69,34 @@ const server = http.createServer(async (req, res) => {
 
   try {
 
-    // ── Serve HTML (inject public keys for client-side realtime & paystack) ──
-    if (method === 'GET' && (pathname === '/' || pathname === '/admin')) {
-      let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-      html = html.replace(/__SUPABASE_URL__/g,      SUPABASE_URL);
-      html = html.replace(/__SUPABASE_ANON_KEY__/g, SUPABASE_PUBLISHABLE_KEY);
-      html = html.replace(/__PAYSTACK_PUBLIC_KEY__/g, PAYSTACK_PUBLIC_KEY);
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
+    // ── Serve static files from Vite's dist folder ──
+    if (method === 'GET' && !pathname.startsWith('/api/')) {
+      const distPath = path.join(__dirname, 'dist');
+      let filePath = path.join(distPath, pathname === '/' ? 'index.html' : pathname);
+      
+      const ext = path.extname(filePath);
+      const mimeTypes = {
+        '.html': 'text/html',
+        '.js': 'text/javascript',
+        '.css': 'text/css',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.svg': 'image/svg+xml'
+      };
+      
+      try {
+        if (!fs.existsSync(filePath)) throw new Error('Not found');
+        const data = fs.readFileSync(filePath);
+        res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
+        res.end(data);
+      } catch (err) {
+        // SPA Fallback
+        const fallback = fs.readFileSync(path.join(distPath, 'index.html'), 'utf8');
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(fallback);
+      }
       return;
     }
-
-    // ══════════════════════════════════════════════════════════════════════
     //  PUBLIC API
     // ══════════════════════════════════════════════════════════════════════
 
