@@ -584,8 +584,12 @@ function App() {
                         <img src={newCtPhoto} className="w-20 h-20 object-cover rounded-full mt-3 border-2 border-neutral-200" />
                       )}
                     </div>
-                    <button type="submit" className="w-full py-2.5 bg-black text-white font-bold rounded-lg hover:bg-neutral-800 transition text-sm">
-                      Add Contestant
+                    <button 
+                      type="submit" 
+                      disabled={photoUploading}
+                      className="w-full py-2.5 bg-black text-white font-bold rounded-lg hover:bg-neutral-800 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {photoUploading ? 'Uploading Photo...' : 'Add Contestant'}
                     </button>
                   </form>
                 </div>
