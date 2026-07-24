@@ -203,8 +203,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`✅  VoteNow running → http://localhost:${PORT}`);
-  console.log(`🔒  Admin panel   → http://localhost:${PORT}/admin`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅  VoteNow running → http://0.0.0.0:${PORT}`);
+  console.log(`🔒  Admin panel   → http://0.0.0.0:${PORT}/admin`);
   console.log(`☁️   Supabase URL  → ${SUPABASE_URL}`);
 });
