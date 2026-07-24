@@ -163,7 +163,11 @@ function App() {
         try {
           const res = await fetch(`${FN}/verify-vote`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+            },
             body: JSON.stringify({
               contestId:    selectedContest.id,
               contestantId: selectedContestant.id,
@@ -208,7 +212,11 @@ function App() {
   const adminFetch = async (url, body) => {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+      },
       body: JSON.stringify(body),
     });
     return res.json();
