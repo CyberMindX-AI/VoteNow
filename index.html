@@ -56,18 +56,6 @@
   <!-- Paystack JS -->
   <script src="https://js.paystack.co/v1/inline.js"></script>
 
-  <script>
-    // Injected by Vite at build time
-    window.ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    window.ENV_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    window.ENV_PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-
-    // Init Supabase client for realtime reads
-    window.supa = supabase.createClient(
-      window.ENV_SUPABASE_URL,
-      window.ENV_SUPABASE_ANON_KEY
-    );
-  </script>
 </head>
 <body>
   <div id="root"></div>
