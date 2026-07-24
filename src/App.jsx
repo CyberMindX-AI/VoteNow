@@ -159,36 +159,38 @@ function App() {
       email: voterEmail.trim(),
       amount: amountKobo,
       currency: 'NGN',
-      callback: async (response) => {
+      callback: function(response) {
         // Send reference to Supabase Edge Function for verification
-        try {
-          const res = await fetch(`${FN}/verify-vote`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-            },
-            body: JSON.stringify({
-              contestId:    selectedContest.id,
-              contestantId: selectedContestant.id,
-              voterName:    voterName.trim(),
-              reference:    response.reference
-            }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            setPaymentSuccess(true);
-            showNotification(`Vote cast for ${selectedContestant.name}!`);
-            setTimeout(loadData, 500);
-          } else {
-            showNotification(data.error || 'Payment verification failed', 'error');
+        (async () => {
+          try {
+            const res = await fetch(`${FN}/verify-vote`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+              },
+              body: JSON.stringify({
+                contestId:    selectedContest.id,
+                contestantId: selectedContestant.id,
+                voterName:    voterName.trim(),
+                reference:    response.reference
+              }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              setPaymentSuccess(true);
+              showNotification(`Vote cast for ${selectedContestant.name}!`);
+              setTimeout(loadData, 500);
+            } else {
+              showNotification(data.error || 'Payment verification failed', 'error');
+              setIsPaying(false);
+            }
+          } catch {
+            showNotification('Network error during verification.', 'error');
             setIsPaying(false);
           }
-        } catch {
-          showNotification('Network error during verification.', 'error');
-          setIsPaying(false);
-        }
+        })();
       },
       onClose: () => {
         setIsPaying(false);
