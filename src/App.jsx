@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+// Supabase Edge Functions base URL
+const FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
 // ─── Data helpers ──────────────────────────────────────────────────────
 const normaliseContest = (c) => ({
   ...c,
@@ -156,9 +159,9 @@ function App() {
       amount: amountKobo,
       currency: 'NGN',
       callback: async (response) => {
-        // Send reference to backend for verification
+        // Send reference to Supabase Edge Function for verification
         try {
-          const res = await fetch('/api/vote/verify', {
+          const res = await fetch(`${FN}/verify-vote`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -211,10 +214,14 @@ function App() {
     return res.json();
   };
 
+  const adminAction = async (action, body) => {
+    return adminFetch(`${FN}/admin-actions?action=${action}`, body);
+  };
+
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     try {
-      const data = await adminFetch('/api/admin/login', { password: adminPassword });
+      const data = await adminFetch(`${FN}/admin-login`, { password: adminPassword });
       if (data.success) { setIsAdminLoggedIn(true); setAdminError(''); }
       else setAdminError(data.error || 'Invalid credentials');
     } catch { setAdminError('Network error'); }
@@ -222,27 +229,26 @@ function App() {
 
   const handleCreateContest = async (e) => {
     e.preventDefault();
-    const data = await adminFetch('/api/admin/contest/create', {
+    const data = await adminAction('create-contest', {
       name: newContestName, description: newContestDesc, votePrice: newContestPrice
     });
     if (data.success) {
       setNewContestName(''); setNewContestDesc(''); setNewContestPrice(100);
       showNotification('Contest created!');
-      // Realtime will update
     } else {
       showNotification(data.error || 'Error creating contest', 'error');
     }
   };
 
   const handleToggleContest = async (contestId, current) => {
-    const data = await adminFetch('/api/admin/contest/toggle', { contestId, active: !current });
+    const data = await adminAction('toggle-contest', { contestId, active: !current });
     if (data.success) showNotification(`Contest ${!current ? 'activated' : 'paused'}`);
     else showNotification(data.error || 'Error', 'error');
   };
 
   const handleDeleteContest = async (contestId, name) => {
     if (!window.confirm(`Delete "${name}" and all its contestants?`)) return;
-    const data = await adminFetch('/api/admin/contest/delete', { contestId });
+    const data = await adminAction('delete-contest', { contestId });
     if (data.success) showNotification('Contest deleted');
     else showNotification(data.error || 'Error', 'error');
   };
@@ -250,7 +256,7 @@ function App() {
   const handleAddContestant = async (e) => {
     e.preventDefault();
     if (!newCtContestId) { showNotification('Select a contest', 'error'); return; }
-    const data = await adminFetch('/api/admin/contestant/add', {
+    const data = await adminAction('add-contestant', {
       contestId: newCtContestId, name: newCtName, photo: newCtPhoto
     });
     if (data.success) {
@@ -261,7 +267,7 @@ function App() {
 
   const handleDeleteContestant = async (contestantId, name) => {
     if (!window.confirm(`Remove "${name}"?`)) return;
-    const data = await adminFetch('/api/admin/contestant/delete', { contestantId });
+    const data = await adminAction('delete-contestant', { contestantId });
     if (data.success) showNotification('Contestant removed');
     else showNotification(data.error || 'Error', 'error');
   };
