@@ -268,7 +268,7 @@ function App() {
       contestId: newCtContestId, name: newCtName, photo: newCtPhoto
     });
     if (data.success) {
-      setNewCtName(''); setNewCtPhoto(''); setNewCtContestId('');
+      setNewCtName(''); setNewCtPhoto('');
       showNotification('Contestant added!');
     } else showNotification(data.error || 'Error', 'error');
   };
