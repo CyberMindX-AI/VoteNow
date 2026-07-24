@@ -46,6 +46,7 @@ function App() {
   const [newContestName,  setNewContestName]  = useState('');
   const [newContestDesc,  setNewContestDesc]  = useState('');
   const [newContestPrice, setNewContestPrice] = useState(100);
+  const [newContestExpiresAt, setNewContestExpiresAt] = useState('');
   const [newCtName,       setNewCtName]       = useState('');
   const [newCtContestId,  setNewCtContestId]  = useState('');
   const [newCtPhoto,      setNewCtPhoto]      = useState('');
@@ -238,10 +239,10 @@ function App() {
   const handleCreateContest = async (e) => {
     e.preventDefault();
     const data = await adminAction('create-contest', {
-      name: newContestName, description: newContestDesc, votePrice: newContestPrice
+      name: newContestName, description: newContestDesc, votePrice: newContestPrice, expiresAt: newContestExpiresAt
     });
     if (data.success) {
-      setNewContestName(''); setNewContestDesc(''); setNewContestPrice(100);
+      setNewContestName(''); setNewContestDesc(''); setNewContestPrice(100); setNewContestExpiresAt('');
       showNotification('Contest created!');
     } else {
       showNotification(data.error || 'Error creating contest', 'error');
@@ -496,10 +497,14 @@ function App() {
                       <textarea value={newContestDesc} onChange={e => setNewContestDesc(e.target.value)} className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-lg focus:outline-none focus:border-black text-sm resize-none" rows="2" placeholder="Brief description..."></textarea>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">Vote Price (₦) *</label>
+                      <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">Price per vote (₦)</label>
                       <input value={newContestPrice} onChange={e => setNewContestPrice(e.target.value)} type="number" min="1" className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-lg focus:outline-none focus:border-black text-sm" required />
                     </div>
-                    <button type="submit" className="w-full py-2.5 bg-black text-white font-bold rounded-lg hover:bg-neutral-800 transition text-sm">
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">Closes At (Optional)</label>
+                      <input value={newContestExpiresAt} onChange={e => setNewContestExpiresAt(e.target.value)} type="datetime-local" className="w-full px-3.5 py-2.5 border border-neutral-200 rounded-lg focus:outline-none focus:border-black text-sm" />
+                    </div>
+                    <button type="submit" className="w-full py-2.5 bg-black text-white font-bold rounded-lg hover:bg-neutral-800 transition text-sm mt-5">
                       Create Contest
                     </button>
                   </form>
@@ -510,7 +515,7 @@ function App() {
                   <table className="w-full text-left min-w-[600px]">
                     <thead className="bg-neutral-50 border-b border-neutral-200">
                       <tr>
-                        {['Contest', 'Price / Vote', 'Contestants', 'Total Votes', 'Status', 'Actions'].map(h => (
+                        {['Contest', 'Price / Vote', 'Contestants', 'Closes At', 'Total Votes', 'Status', 'Actions'].map(h => (
                           <th key={h} className="px-5 py-3.5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{h}</th>
                         ))}
                       </tr>
@@ -518,6 +523,7 @@ function App() {
                     <tbody className="divide-y divide-neutral-100">
                       {contests.map(c => {
                         const tv = c.contestants.reduce((s, p) => s + p.votes, 0);
+                        const isExpired = c.expires_at && new Date() > new Date(c.expires_at);
                         return (
                           <tr key={c.id} className="hover:bg-neutral-50">
                             <td className="px-5 py-4">
@@ -526,10 +532,14 @@ function App() {
                             </td>
                             <td className="px-5 py-4 font-bold text-sm">₦{Number(c.votePrice).toLocaleString()}</td>
                             <td className="px-5 py-4 text-sm font-semibold">{c.contestants.length}</td>
+                            <td className="px-5 py-4 text-xs font-semibold text-neutral-500">
+                              {c.expires_at ? new Date(c.expires_at).toLocaleString() : 'Never'}
+                              {isExpired && <span className="ml-2 text-red-500 font-bold">(Closed)</span>}
+                            </td>
                             <td className="px-5 py-4 text-sm font-bold">{tv.toLocaleString()}</td>
                             <td className="px-5 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${c.active ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
-                                {c.active ? '● Active' : '○ Paused'}
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${c.active && !isExpired ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                                {c.active && !isExpired ? '● Active' : '○ Paused / Closed'}
                               </span>
                             </td>
                             <td className="px-5 py-4">
@@ -753,14 +763,20 @@ function App() {
 
         {!loading && activeContestsList.map(c => {
           const tv = c.contestants.reduce((s, p) => s + p.votes, 0);
+          const isExpired = c.expires_at && new Date() > new Date(c.expires_at);
           return (
             <div key={c.id} className="border-t border-neutral-900 pt-10">
-              <div className="flex items-start justify-between mb-8">
+              <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">{c.name}</h2>
                   {c.description && <p className="text-neutral-500 text-sm mt-1">{c.description}</p>}
+                  {c.expires_at && (
+                    <div className={`mt-2 text-xs font-bold px-2 py-1 inline-block rounded border ${isExpired ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
+                      {isExpired ? 'Voting Closed' : `Closes at: ${new Date(c.expires_at).toLocaleString()}`}
+                    </div>
+                  )}
                 </div>
-                <div className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-full text-xs font-bold text-neutral-300 whitespace-nowrap ml-4">
+                <div className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-full text-xs font-bold text-neutral-300 whitespace-nowrap md:ml-4 self-start">
                   ₦{Number(c.votePrice).toLocaleString()} / Vote
                 </div>
               </div>

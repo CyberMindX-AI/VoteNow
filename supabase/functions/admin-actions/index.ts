@@ -34,10 +34,10 @@ serve(async (req) => {
 
     // Create contest
     if (action === "create-contest") {
-      const { name, description, votePrice } = body;
+      const { name, description, votePrice, expiresAt } = body;
       if (!name) return new Response(JSON.stringify({ error: "Name is required" }), { status: 400, headers: { ...CORS, "Content-Type": "application/json" } });
       const result = await supaFetch(`${SUPABASE_URL}/rest/v1/contests`, "POST", {
-        name, description: description || "", vote_price: parseFloat(votePrice) || 100, active: true,
+        name, description: description || "", vote_price: parseFloat(votePrice) || 100, active: true, expires_at: expiresAt || null
       }, SUPABASE_SECRET_KEY);
       return new Response(JSON.stringify({ success: true, contest: result?.[0] }), { headers: { ...CORS, "Content-Type": "application/json" } });
     }
